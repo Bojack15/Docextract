@@ -14,7 +14,8 @@ from vector_store import VectorStore
 
 @st.cache_data
 def get_pdf_images(file_bytes):
-    return convert_from_bytes(file_bytes, dpi=120)
+    # Render first 5 pages at 90 DPI for fast loading & client presentation
+    return convert_from_bytes(file_bytes, dpi=90, last_page=5)
 
 # ─────────────────── Page Config ───────────────────
 st.set_page_config(
@@ -70,7 +71,7 @@ st.markdown("""
     background: rgba(30, 41, 59, 0.35);
     border: 1px solid rgba(255, 255, 255, 0.05);
     backdrop-filter: blur(8px);
-    padding: 1.5rem;
+    padding: 1rem;
     border-radius: 16px;
     text-align: center;
     box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.15);
@@ -84,7 +85,7 @@ st.markdown("""
 
 .stat-box .val {
     font-family: 'Outfit', sans-serif;
-    font-size: 2.2rem;
+    font-size: 1.8rem;
     font-weight: 700;
     background: linear-gradient(135deg, #818cf8, #a78bfa);
     -webkit-background-clip: text;
@@ -171,26 +172,26 @@ with tab_process:
         st.write("---")
 
         if show_preview:
-            view_col, action_col = st.columns([1, 1])
-        else:
-            action_col = st.container()
-            view_col = None
+            st.markdown("### Document Preview")
+            if selected_file.name.lower().endswith(".pdf"):
+                try:
+                    with st.spinner("Rendering document pages..."):
+                        images = get_pdf_images(selected_file.getvalue())
 
-        if show_preview and view_col:
-            with view_col:
-                st.markdown("### Document Preview")
-                if selected_file.name.lower().endswith(".pdf"):
-                    try:
-                        with st.spinner("Rendering document pages..."):
-                            images = get_pdf_images(selected_file.getvalue())
-
-                        with st.container(height=700):
+                    col_p1, col_p2, col_p3 = st.columns([1, 2, 1])
+                    with col_p2:
+                        with st.container(height=600):
                             for i, img in enumerate(images, 1):
                                 st.image(img, caption=f"Page {i}", use_container_width=True)
-                    except Exception as e:
-                        st.error(f"Failed to load PDF preview: {e}")
-                else:
+                except Exception as e:
+                    st.error(f"Failed to load PDF preview: {e}")
+            else:
+                col_p1, col_p2, col_p3 = st.columns([1, 2, 1])
+                with col_p2:
                     st.image(selected_file, use_container_width=True)
+            st.write("---")
+
+        action_col = st.container()
 
         with action_col:
             st.markdown("### Processing Settings")

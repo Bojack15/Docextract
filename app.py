@@ -209,7 +209,18 @@ with tab_process:
             with col3:
                 do_omr = st.checkbox("OMR Mode", value=False)
 
+            if "processed_docs" not in st.session_state:
+                st.session_state["processed_docs"] = {}
+
+            # Clear cached documents that are no longer in the uploaded files list
+            uploaded_names = {f.name for f in files}
+            st.session_state["processed_docs"] = {
+                name: doc for name, doc in st.session_state["processed_docs"].items()
+                if name in uploaded_names
+            }
+
             if st.button("Process Documents", type="primary", use_container_width=True):
+                st.session_state["processed_docs"] = {}
                 config = ChunkConfig(size=chunk_size, overlap=chunk_overlap)
 
                 for uploaded in files:
@@ -241,36 +252,43 @@ with tab_process:
                                 st.write(f"Exported to {out}")
 
                             status.update(label=f"Finished {uploaded.name}", state="complete")
+                            st.session_state["processed_docs"][uploaded.name] = doc
                         finally:
                             os.unlink(tmp_path)
+                st.rerun()
 
-                        # Grid statistics display
-                        c1, c2, c3, c4 = st.columns(4)
-                        c1.markdown(f'<div class="stat-box"><div class="val">{doc.total_pages}</div><div class="lbl">Pages</div></div>', unsafe_allow_html=True)
-                        c2.markdown(f'<div class="stat-box"><div class="val">{doc.total_words:,}</div><div class="lbl">Words</div></div>', unsafe_allow_html=True)
-                        c3.markdown(f'<div class="stat-box"><div class="val">{len(doc.chunks)}</div><div class="lbl">Chunks</div></div>', unsafe_allow_html=True)
-                        c4.markdown(f'<div class="stat-box"><div class="val">{doc.method.value.upper()}</div><div class="lbl">Extraction</div></div>', unsafe_allow_html=True)
+            # Render stats and previews for any processed documents in session state
+            if st.session_state["processed_docs"]:
+                for name, doc in st.session_state["processed_docs"].items():
+                    st.write(f"### Processed Results for {name}")
 
-                        # Extracted layout previews
-                        with st.expander("Structured Page Outlines"):
-                            for page in doc.pages:
-                                icon = "[Text]" if page.method.value == "text" else "[OCR]"
-                                conf = f" — {page.confidence:.1f}% OCR Confidence" if page.confidence else ""
-                                st.markdown(f"**{icon} Page {page.number}** — {page.word_count} words{conf}")
-                                if page.text:
-                                    st.text(page.text[:300] + ("..." if len(page.text) > 300 else ""))
+                    # Grid statistics display
+                    c1, c2, c3, c4 = st.columns(4)
+                    c1.markdown(f'<div class="stat-box"><div class="val">{doc.total_pages}</div><div class="lbl">Pages</div></div>', unsafe_allow_html=True)
+                    c2.markdown(f'<div class="stat-box"><div class="val">{doc.total_words:,}</div><div class="lbl">Words</div></div>', unsafe_allow_html=True)
+                    c3.markdown(f'<div class="stat-box"><div class="val">{len(doc.chunks)}</div><div class="lbl">Chunks</div></div>', unsafe_allow_html=True)
+                    c4.markdown(f'<div class="stat-box"><div class="val">{doc.method.value.upper()}</div><div class="lbl">Extraction</div></div>', unsafe_allow_html=True)
 
-                        with st.expander("Text Chunk Samples"):
-                            for chunk in doc.chunks[:5]:
-                                st.markdown(
-                                    f'<div class="result">'
-                                    f'<div class="meta">Chunk #{chunk.index} · Pages {chunk.start_page}–{chunk.end_page} · {chunk.word_count} words</div>'
-                                    f'<div class="body">{chunk.text[:220]}...</div>'
-                                    f'</div>',
-                                    unsafe_allow_html=True,
-                                )
-                            if len(doc.chunks) > 5:
-                                st.info(f"Showing 5 of {len(doc.chunks)} chunks")
+                    # Extracted layout previews
+                    with st.expander("Structured Page Outlines"):
+                        for page in doc.pages:
+                            icon = "[Text]" if page.method.value == "text" else "[OCR]"
+                            conf = f" — {page.confidence:.1f}% OCR Confidence" if page.confidence else ""
+                            st.markdown(f"**{icon} Page {page.number}** — {page.word_count} words{conf}")
+                            if page.text:
+                                st.text(page.text[:300] + ("..." if len(page.text) > 300 else ""))
+
+                    with st.expander("Text Chunk Samples"):
+                        for chunk in doc.chunks[:5]:
+                            st.markdown(
+                                f'<div class="result">'
+                                f'<div class="meta">Chunk #{chunk.index} · Pages {chunk.start_page}–{chunk.end_page} · {chunk.word_count} words</div>'
+                                f'<div class="body">{chunk.text[:220]}...</div>'
+                                f'</div>',
+                                unsafe_allow_html=True,
+                            )
+                        if len(doc.chunks) > 5:
+                            st.info(f"Showing 5 of {len(doc.chunks)} chunks")
 
 # ─────────────────── Search Tab ────────────────────
 with tab_search:

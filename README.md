@@ -12,6 +12,10 @@ A python tool for extracting text and tables from PDFs and scanned documents, ch
 - **Paragraph Chunker**: Segments text into chunks by paragraph/sentence boundaries (with overlap) so context isn't lost.
 - **Local Search**: Stores embeddings in a local ChromaDB instance (`all-MiniLM-L6-v2`) for offline semantic query.
 
+## Architecture
+
+![Architecture Diagram](docextract_architecture.png)
+
 ## Project Structure
 
 - `app.py` - Streamlit web app

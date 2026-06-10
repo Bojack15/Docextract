@@ -5,6 +5,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 import pdfplumber
+from pdfplumber.utils import extract_text
 from pdf2image import convert_from_path
 from PIL import Image
 import pytesseract
@@ -16,6 +17,71 @@ logger = logging.getLogger(__name__)
 
 MIN_TEXT_CHARS = 30
 SUPPORTED_IMAGES = {".png", ".jpg", ".jpeg", ".tiff", ".tif", ".bmp", ".webp"}
+
+
+def correct_reversed_text(text: str) -> str:
+    if not text:
+        return ""
+    common_words = {
+        "the", "and", "of", "to", "in", "is", "that", "it", "on", "for", 
+        "with", "as", "are", "by", "this", "from", "an", "at", "be", "was", 
+        "or", "which"
+    }
+    reversed_common = {w[::-1] for w in common_words}
+
+    lines = text.split("\n")
+    corrected_lines = []
+    for line in lines:
+        words = line.lower().split()
+        rev_count = sum(1 for w in words if w.strip(".,;:?!()\"'-") in reversed_common)
+        normal_count = sum(1 for w in words if w.strip(".,;:?!()\"'-") in common_words)
+
+        if rev_count > normal_count and rev_count >= 1:
+            corrected_lines.append(line[::-1])
+        else:
+            corrected_lines.append(line)
+
+    return "\n".join(corrected_lines)
+
+
+def extract_page_custom(page) -> str:
+    upright_chars = [c for c in page.chars if c.get("upright") != False]
+    rotated_chars = [c for c in page.chars if c.get("upright") == False]
+    
+    parts = []
+    if upright_chars:
+        text_upright = extract_text(upright_chars, x_tolerance=3, y_tolerance=3)
+        if text_upright.strip():
+            parts.append(text_upright.strip())
+            
+    if rotated_chars:
+        c0 = rotated_chars[0]
+        matrix = c0.get("matrix", (1, 0, 0, 1, 0, 0))
+        H = page.height
+        W = page.width
+        
+        rotated_chars_transformed = []
+        for c in rotated_chars:
+            c_new = c.copy()
+            if len(matrix) >= 4 and matrix[1] < 0:
+                # 90 degrees clockwise visual rotation
+                c_new['x0'] = c['top']
+                c_new['x1'] = c['bottom']
+                c_new['top'] = W - c['x1']
+                c_new['bottom'] = W - c['x0']
+            else:
+                # 90 degrees counter-clockwise visual rotation (default)
+                c_new['x0'] = H - c['bottom']
+                c_new['x1'] = H - c['top']
+                c_new['top'] = c['x0']
+                c_new['bottom'] = c['x1']
+            rotated_chars_transformed.append(c_new)
+            
+        text_rotated = extract_text(rotated_chars_transformed, x_tolerance=8, y_tolerance=3)
+        if text_rotated.strip():
+            parts.append(text_rotated.strip())
+            
+    return "\n\n".join(parts)
 
 
 def detect_file_type(filepath: str) -> str:
@@ -50,7 +116,7 @@ def _extract_pdf(filepath: str, ocr_lang: str, dpi: int, is_omr: bool) -> list[P
 
             # If not running in OMR mode, try to extract digital text first
             if not is_omr:
-                text = (page.extract_text() or "").strip()
+                text = extract_page_custom(page).strip()
                 tables = _extract_tables(page)
 
             if not is_omr and len(text) >= MIN_TEXT_CHARS:

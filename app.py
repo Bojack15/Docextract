@@ -219,42 +219,41 @@ with tab_process:
                 if name in uploaded_names
             }
 
-            if st.button("Process Documents", type="primary", use_container_width=True):
-                st.session_state["processed_docs"] = {}
+            if st.button("Process Document", type="primary", use_container_width=True):
                 config = ChunkConfig(size=chunk_size, overlap=chunk_overlap)
+                uploaded = selected_file
 
-                for uploaded in files:
-                    with st.status(f"Processing **{uploaded.name}**...", expanded=True) as status:
-                        suffix = Path(uploaded.name).suffix
-                        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                            tmp.write(uploaded.getbuffer())
-                            tmp_path = tmp.name
+                with st.status(f"Processing **{uploaded.name}**...", expanded=True) as status:
+                    suffix = Path(uploaded.name).suffix
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                        tmp.write(uploaded.getbuffer())
+                        tmp_path = tmp.name
 
-                        try:
-                            st.write("Parsing text structural layouts...")
-                            doc = process_file(tmp_path, config, ocr_lang, dpi, is_omr=do_omr)
+                    try:
+                        st.write("Parsing text structural layouts...")
+                        doc = process_file(tmp_path, config, ocr_lang, dpi, is_omr=do_omr)
 
-                            doc.filename = uploaded.name
-                            doc.filepath = uploaded.name
+                        doc.filename = uploaded.name
+                        doc.filepath = uploaded.name
 
-                            st.write(f"Extracted {doc.total_pages} pages, {doc.total_words:,} words")
-                            st.write(f"Fragmented into {len(doc.chunks)} chunks")
+                        st.write(f"Extracted {doc.total_pages} pages, {doc.total_words:,} words")
+                        st.write(f"Fragmented into {len(doc.chunks)} chunks")
 
-                            if do_store:
-                                st.write("Storing indexing structures...")
-                                vs = VectorStore(path=db_path)
-                                n = vs.add(doc)
-                                st.write(f"Indexed {n} chunks in DB")
+                        if do_store:
+                            st.write("Storing indexing structures...")
+                            vs = VectorStore(path=db_path)
+                            n = vs.add(doc)
+                            st.write(f"Indexed {n} chunks in DB")
 
-                            if do_export:
-                                out = f"./{Path(uploaded.name).stem}_extracted.json"
-                                export_json(doc, out)
-                                st.write(f"Exported to {out}")
+                        if do_export:
+                            out = f"./{Path(uploaded.name).stem}_extracted.json"
+                            export_json(doc, out)
+                            st.write(f"Exported to {out}")
 
-                            status.update(label=f"Finished {uploaded.name}", state="complete")
-                            st.session_state["processed_docs"][uploaded.name] = doc
-                        finally:
-                            os.unlink(tmp_path)
+                        status.update(label=f"Finished {uploaded.name}", state="complete")
+                        st.session_state["processed_docs"][uploaded.name] = doc
+                    finally:
+                        os.unlink(tmp_path)
                 st.rerun()
 
             # Render stats and previews for any processed documents in session state

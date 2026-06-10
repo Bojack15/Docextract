@@ -1,5 +1,6 @@
 import os
 import tempfile
+import base64
 from pathlib import Path
 import streamlit as st
 
@@ -151,76 +152,96 @@ with tab_process:
         accept_multiple_files=True,
     )
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        do_store = st.checkbox("Index in vector DB", value=True)
-    with col2:
-        do_export = st.checkbox("Export metadata JSON", value=False)
-    with col3:
-        do_omr = st.checkbox("Scan Sheet Mode (OMR)", value=False)
+    if files:
+        view_col, action_col = st.columns([1, 1])
+        
+        with view_col:
+            st.markdown("### Document Preview")
+            if len(files) > 1:
+                selected_file_name = st.selectbox("Select file to view", [f.name for f in files])
+                selected_file = next(f for f in files if f.name == selected_file_name)
+            else:
+                selected_file = files[0]
+                
+            if selected_file.name.lower().endswith(".pdf"):
+                base64_pdf = base64.b64encode(selected_file.getvalue()).decode('utf-8')
+                pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="700" style="border:1px solid rgba(255, 255, 255, 0.1); border-radius:12px;"></iframe>'
+                st.markdown(pdf_display, unsafe_allow_html=True)
+            else:
+                st.image(selected_file, use_container_width=True)
 
-    if files and st.button("Process", type="primary", use_container_width=True):
-        config = ChunkConfig(size=chunk_size, overlap=chunk_overlap)
+        with action_col:
+            st.markdown("### Processing Settings")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                do_store = st.checkbox("Index in vector DB", value=True)
+            with col2:
+                do_export = st.checkbox("Export JSON", value=False)
+            with col3:
+                do_omr = st.checkbox("OMR Mode", value=False)
 
-        for uploaded in files:
-            with st.status(f"Processing **{uploaded.name}**...", expanded=True) as status:
-                suffix = Path(uploaded.name).suffix
-                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                    tmp.write(uploaded.getbuffer())
-                    tmp_path = tmp.name
+            if st.button("Process Documents", type="primary", use_container_width=True):
+                config = ChunkConfig(size=chunk_size, overlap=chunk_overlap)
 
-                try:
-                    st.write("Parsing text structural layouts...")
-                    doc = process_file(tmp_path, config, ocr_lang, dpi, is_omr=do_omr)
+                for uploaded in files:
+                    with st.status(f"Processing **{uploaded.name}**...", expanded=True) as status:
+                        suffix = Path(uploaded.name).suffix
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                            tmp.write(uploaded.getbuffer())
+                            tmp_path = tmp.name
 
-                    doc.filename = uploaded.name
-                    doc.filepath = uploaded.name
+                        try:
+                            st.write("Parsing text structural layouts...")
+                            doc = process_file(tmp_path, config, ocr_lang, dpi, is_omr=do_omr)
 
-                    st.write(f"Extracted {doc.total_pages} pages, {doc.total_words:,} words")
-                    st.write(f"Fragmented into {len(doc.chunks)} chunks")
+                            doc.filename = uploaded.name
+                            doc.filepath = uploaded.name
 
-                    if do_store:
-                        st.write("Storing indexing structures...")
-                        vs = VectorStore(path=db_path)
-                        n = vs.add(doc)
-                        st.write(f"Indexed {n} chunks in DB")
+                            st.write(f"Extracted {doc.total_pages} pages, {doc.total_words:,} words")
+                            st.write(f"Fragmented into {len(doc.chunks)} chunks")
 
-                    if do_export:
-                        out = f"./{Path(uploaded.name).stem}_extracted.json"
-                        export_json(doc, out)
-                        st.write(f"Exported to {out}")
+                            if do_store:
+                                st.write("Storing indexing structures...")
+                                vs = VectorStore(path=db_path)
+                                n = vs.add(doc)
+                                st.write(f"Indexed {n} chunks in DB")
 
-                    status.update(label=f"Finished {uploaded.name}", state="complete")
-                finally:
-                    os.unlink(tmp_path)
+                            if do_export:
+                                out = f"./{Path(uploaded.name).stem}_extracted.json"
+                                export_json(doc, out)
+                                st.write(f"Exported to {out}")
 
-                # Grid statistics display
-                c1, c2, c3, c4 = st.columns(4)
-                c1.markdown(f'<div class="stat-box"><div class="val">{doc.total_pages}</div><div class="lbl">Pages</div></div>', unsafe_allow_html=True)
-                c2.markdown(f'<div class="stat-box"><div class="val">{doc.total_words:,}</div><div class="lbl">Words</div></div>', unsafe_allow_html=True)
-                c3.markdown(f'<div class="stat-box"><div class="val">{len(doc.chunks)}</div><div class="lbl">Chunks</div></div>', unsafe_allow_html=True)
-                c4.markdown(f'<div class="stat-box"><div class="val">{doc.method.value.upper()}</div><div class="lbl">Extraction</div></div>', unsafe_allow_html=True)
+                            status.update(label=f"Finished {uploaded.name}", state="complete")
+                        finally:
+                            os.unlink(tmp_path)
 
-                # Extracted layout previews
-                with st.expander("Structured Page Outlines"):
-                    for page in doc.pages:
-                        icon = "[Text]" if page.method.value == "text" else "[OCR]"
-                        conf = f" — {page.confidence:.1f}% OCR Confidence" if page.confidence else ""
-                        st.markdown(f"**{icon} Page {page.number}** — {page.word_count} words{conf}")
-                        if page.text:
-                            st.text(page.text[:300] + ("..." if len(page.text) > 300 else ""))
+                        # Grid statistics display
+                        c1, c2, c3, c4 = st.columns(4)
+                        c1.markdown(f'<div class="stat-box"><div class="val">{doc.total_pages}</div><div class="lbl">Pages</div></div>', unsafe_allow_html=True)
+                        c2.markdown(f'<div class="stat-box"><div class="val">{doc.total_words:,}</div><div class="lbl">Words</div></div>', unsafe_allow_html=True)
+                        c3.markdown(f'<div class="stat-box"><div class="val">{len(doc.chunks)}</div><div class="lbl">Chunks</div></div>', unsafe_allow_html=True)
+                        c4.markdown(f'<div class="stat-box"><div class="val">{doc.method.value.upper()}</div><div class="lbl">Extraction</div></div>', unsafe_allow_html=True)
 
-                with st.expander("Text Chunk Samples"):
-                    for chunk in doc.chunks[:5]:
-                        st.markdown(
-                            f'<div class="result">'
-                            f'<div class="meta">Chunk #{chunk.index} · Pages {chunk.start_page}–{chunk.end_page} · {chunk.word_count} words</div>'
-                            f'<div class="body">{chunk.text[:220]}...</div>'
-                            f'</div>',
-                            unsafe_allow_html=True,
-                        )
-                    if len(doc.chunks) > 5:
-                        st.info(f"Showing 5 of {len(doc.chunks)} chunks")
+                        # Extracted layout previews
+                        with st.expander("Structured Page Outlines"):
+                            for page in doc.pages:
+                                icon = "[Text]" if page.method.value == "text" else "[OCR]"
+                                conf = f" — {page.confidence:.1f}% OCR Confidence" if page.confidence else ""
+                                st.markdown(f"**{icon} Page {page.number}** — {page.word_count} words{conf}")
+                                if page.text:
+                                    st.text(page.text[:300] + ("..." if len(page.text) > 300 else ""))
+
+                        with st.expander("Text Chunk Samples"):
+                            for chunk in doc.chunks[:5]:
+                                st.markdown(
+                                    f'<div class="result">'
+                                    f'<div class="meta">Chunk #{chunk.index} · Pages {chunk.start_page}–{chunk.end_page} · {chunk.word_count} words</div>'
+                                    f'<div class="body">{chunk.text[:220]}...</div>'
+                                    f'</div>',
+                                    unsafe_allow_html=True,
+                                )
+                            if len(doc.chunks) > 5:
+                                st.info(f"Showing 5 of {len(doc.chunks)} chunks")
 
 # ─────────────────── Search Tab ────────────────────
 with tab_search:

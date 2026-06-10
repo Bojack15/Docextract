@@ -2,19 +2,18 @@
 
 A python tool for extracting text and tables from PDFs and scanned documents, chunking the content, and indexing it into ChromaDB for semantic search. Includes a command-line tool and a Streamlit web interface.
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit%20Cloud-FF4B4B?logo=streamlit&logoColor=white)](https://docextract-arnav.streamlit.app)
+
 ![App Screenshot](docextract_screenshot.png)
 
 ## Features
 
+- **Inline Document Preview**: Embeds a native browser PDF and image viewer directly into the dashboard so you can view files side-by-side with extraction logs.
 - **Text & Table Extraction**: Extracts digital text and tables natively using `pdfplumber`. Falls back to OCR (`pytesseract` + `pdf2image`) if the page is scanned or image-based.
 - **Image Preprocessing**: Uses OpenCV to deskew and align phone-scanned pages before running OCR.
 - **Bubble Sheet Reader (OMR)**: Optional mode that grades bubble sheet inputs by tracking filled circle densities.
 - **Paragraph Chunker**: Segments text into chunks by paragraph/sentence boundaries (with overlap) so context isn't lost.
 - **Local Search**: Stores embeddings in a local ChromaDB instance (`all-MiniLM-L6-v2`) for offline semantic query.
-
-## Architecture
-
-![Architecture Diagram](docextract_architecture.png)
 
 ## Project Structure
 

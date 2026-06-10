@@ -171,12 +171,9 @@ with tab_process:
     )
 
     if files:
-        col_file_sel, col_toggle = st.columns([3, 1])
-        with col_file_sel:
-            selected_file_name = st.selectbox("Select file to manage", [f.name for f in files])
-            selected_file = next(f for f in files if f.name == selected_file_name)
-        with col_toggle:
-            show_preview = st.toggle("Preview File", value=False)
+        selected_file_name = st.selectbox("Select file to manage", [f.name for f in files])
+        selected_file = next(f for f in files if f.name == selected_file_name)
+        show_preview = st.toggle("Preview File", value=False)
 
         st.write("---")
 

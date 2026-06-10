@@ -130,6 +130,15 @@ st.markdown("""
     line-height: 1.7;
     font-size: 0.95rem;
 }
+
+/* Prevent image overflow in column containers and ensure centering */
+img, .stImage, div[data-testid="stImage"] {
+    max-width: 100% !important;
+    height: auto !important;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -178,7 +187,7 @@ with tab_process:
                     with st.spinner("Rendering document pages..."):
                         images = get_pdf_images(selected_file.getvalue())
 
-                    col_p1, col_p2, col_p3 = st.columns([1, 2, 1])
+                    col_p1, col_p2, col_p3 = st.columns([1, 8, 1])
                     with col_p2:
                         with st.container(height=600):
                             for i, img in enumerate(images, 1):
@@ -186,7 +195,7 @@ with tab_process:
                 except Exception as e:
                     st.error(f"Failed to load PDF preview: {e}")
             else:
-                col_p1, col_p2, col_p3 = st.columns([1, 2, 1])
+                col_p1, col_p2, col_p3 = st.columns([1, 8, 1])
                 with col_p2:
                     st.image(selected_file, use_container_width=True)
             st.write("---")

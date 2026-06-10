@@ -2,6 +2,7 @@ import os
 import tempfile
 import base64
 import io
+import threading
 from pathlib import Path
 import streamlit as st
 import pdfplumber
@@ -16,6 +17,45 @@ from vector_store import VectorStore
 def get_pdf_images(file_bytes):
     # Render first 5 pages at 90 DPI for fast loading & client presentation
     return convert_from_bytes(file_bytes, dpi=90, last_page=5)
+
+
+@st.cache_resource
+def get_bg_tasks():
+    return {}
+
+BG_TASKS = get_bg_tasks()
+
+
+def background_processing_task(file_bytes, filename, config, ocr_lang, dpi, do_omr, do_store, db_path, do_export):
+    BG_TASKS[filename] = {"status": "processing", "doc": None, "error": None}
+    suffix = Path(filename).suffix
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(file_bytes)
+        tmp_path = tmp.name
+
+    try:
+        doc = process_file(tmp_path, config, ocr_lang, dpi, is_omr=do_omr)
+        doc.filename = filename
+        doc.filepath = filename
+
+        if do_store:
+            vs = VectorStore(path=db_path)
+            vs.add(doc)
+
+        if do_export:
+            out = f"./{Path(filename).stem}_extracted.json"
+            export_json(doc, out)
+
+        BG_TASKS[filename]["doc"] = doc
+        BG_TASKS[filename]["status"] = "completed"
+    except Exception as e:
+        BG_TASKS[filename]["error"] = str(e)
+        BG_TASKS[filename]["status"] = "failed"
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except:
+            pass
 
 # ─────────────────── Page Config ───────────────────
 st.set_page_config(
@@ -220,41 +260,44 @@ with tab_process:
             }
 
             if st.button("Process Document", type="primary", use_container_width=True):
-                config = ChunkConfig(size=chunk_size, overlap=chunk_overlap)
-                uploaded = selected_file
+                if BG_TASKS.get(selected_file.name, {}).get("status") == "processing":
+                    st.warning("Already processing this file!")
+                else:
+                    config = ChunkConfig(size=chunk_size, overlap=chunk_overlap)
+                    file_bytes = selected_file.getvalue()
+                    t = threading.Thread(
+                        target=background_processing_task,
+                        args=(
+                            file_bytes,
+                            selected_file.name,
+                            config,
+                            ocr_lang,
+                            dpi,
+                            do_omr,
+                            do_store,
+                            db_path,
+                            do_export
+                        )
+                    )
+                    t.start()
+                    st.rerun()
 
-                with st.status(f"Processing **{uploaded.name}**...", expanded=True) as status:
-                    suffix = Path(uploaded.name).suffix
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                        tmp.write(uploaded.getbuffer())
-                        tmp_path = tmp.name
-
-                    try:
-                        st.write("Parsing text structural layouts...")
-                        doc = process_file(tmp_path, config, ocr_lang, dpi, is_omr=do_omr)
-
-                        doc.filename = uploaded.name
-                        doc.filepath = uploaded.name
-
-                        st.write(f"Extracted {doc.total_pages} pages, {doc.total_words:,} words")
-                        st.write(f"Fragmented into {len(doc.chunks)} chunks")
-
-                        if do_store:
-                            st.write("Storing indexing structures...")
-                            vs = VectorStore(path=db_path)
-                            n = vs.add(doc)
-                            st.write(f"Indexed {n} chunks in DB")
-
-                        if do_export:
-                            out = f"./{Path(uploaded.name).stem}_extracted.json"
-                            export_json(doc, out)
-                            st.write(f"Exported to {out}")
-
-                        status.update(label=f"Finished {uploaded.name}", state="complete")
-                        st.session_state["processed_docs"][uploaded.name] = doc
-                    finally:
-                        os.unlink(tmp_path)
-                st.rerun()
+            task = BG_TASKS.get(selected_file.name)
+            if task:
+                if task["status"] == "processing":
+                    st.info(f"Processing {selected_file.name} in background... Please wait.")
+                    st.spinner("Parsing layouts...")
+                    import time
+                    time.sleep(1)
+                    st.rerun()
+                elif task["status"] == "completed":
+                    st.session_state["processed_docs"][selected_file.name] = task["doc"]
+                    BG_TASKS.pop(selected_file.name, None)
+                    st.success(f"Finished processing {selected_file.name}!")
+                    st.rerun()
+                elif task["status"] == "failed":
+                    st.error(f"Failed to process {selected_file.name}: {task['error']}")
+                    BG_TASKS.pop(selected_file.name, None)
 
             # Render stats and previews for any processed documents in session state
             if st.session_state["processed_docs"]:

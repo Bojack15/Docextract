@@ -291,7 +291,7 @@ with tab_process:
             task = BG_TASKS.get(selected_file.name)
             if task:
                 if task["status"] == "processing":
-                    st.info(f"Processing {selected_file.name} in background... Please wait.")
+                    st.info("Processing...")
                     st.spinner("Parsing layouts...")
                     import time
                     time.sleep(1)

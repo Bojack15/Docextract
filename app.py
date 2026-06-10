@@ -156,57 +156,65 @@ with tab_process:
     )
 
     if files:
-        view_col, action_col = st.columns([1, 1])
-        
-        with view_col:
-            st.markdown("### Document Preview")
-            if len(files) > 1:
-                selected_file_name = st.selectbox("Select file to view", [f.name for f in files])
-                selected_file = next(f for f in files if f.name == selected_file_name)
-            else:
-                selected_file = files[0]
-                
-            if selected_file.name.lower().endswith(".pdf"):
-                try:
-                    with pdfplumber.open(io.BytesIO(selected_file.getvalue())) as pdf:
-                        num_pages = len(pdf.pages)
+        col_file_sel, col_toggle = st.columns([3, 1])
+        with col_file_sel:
+            selected_file_name = st.selectbox("Select file to manage", [f.name for f in files])
+            selected_file = next(f for f in files if f.name == selected_file_name)
+        with col_toggle:
+            show_preview = st.toggle("👁️ Preview File", value=False)
 
-                    page_key = f"page_{selected_file.name}"
-                    if page_key not in st.session_state:
-                        st.session_state[page_key] = 1
+        st.write("---")
 
-                    col_prev, col_num, col_next = st.columns([1, 2, 1])
-                    with col_prev:
-                        if st.button("◀ Prev", key=f"prev_{selected_file.name}", use_container_width=True):
-                            if st.session_state[page_key] > 1:
-                                st.session_state[page_key] -= 1
-                                st.rerun()
-                    with col_num:
-                        st.markdown(f"<p style='text-align: center; margin-top: 6px;'>Page <b>{st.session_state[page_key]}</b> of {num_pages}</p>", unsafe_allow_html=True)
-                    with col_next:
-                        if st.button("Next ▶", key=f"next_{selected_file.name}", use_container_width=True):
-                            if st.session_state[page_key] < num_pages:
-                                st.session_state[page_key] += 1
-                                st.rerun()
+        if show_preview:
+            view_col, action_col = st.columns([1, 1])
+        else:
+            action_col = st.container()
+            view_col = None
 
-                    page_num = st.slider("Quick Jump", 1, num_pages, value=st.session_state[page_key], key=f"slide_{selected_file.name}")
-                    if page_num != st.session_state[page_key]:
-                        st.session_state[page_key] = page_num
-                        st.rerun()
+        if show_preview and view_col:
+            with view_col:
+                st.markdown("### Document Preview")
+                if selected_file.name.lower().endswith(".pdf"):
+                    try:
+                        with pdfplumber.open(io.BytesIO(selected_file.getvalue())) as pdf:
+                            num_pages = len(pdf.pages)
 
-                    with st.spinner("Rendering page preview..."):
-                        images = convert_from_bytes(
-                            selected_file.getvalue(),
-                            dpi=120,
-                            first_page=st.session_state[page_key],
-                            last_page=st.session_state[page_key]
-                        )
-                        if images:
-                            st.image(images[0], use_container_width=True)
-                except Exception as e:
-                    st.error(f"Failed to load PDF preview: {e}")
-            else:
-                st.image(selected_file, use_container_width=True)
+                        page_key = f"page_{selected_file.name}"
+                        if page_key not in st.session_state:
+                            st.session_state[page_key] = 1
+
+                        col_prev, col_num, col_next = st.columns([1, 2, 1])
+                        with col_prev:
+                            if st.button("◀ Prev", key=f"prev_{selected_file.name}", use_container_width=True):
+                                if st.session_state[page_key] > 1:
+                                    st.session_state[page_key] -= 1
+                                    st.rerun()
+                        with col_num:
+                            st.markdown(f"<p style='text-align: center; margin-top: 6px;'>Page <b>{st.session_state[page_key]}</b> of {num_pages}</p>", unsafe_allow_html=True)
+                        with col_next:
+                            if st.button("Next ▶", key=f"next_{selected_file.name}", use_container_width=True):
+                                if st.session_state[page_key] < num_pages:
+                                    st.session_state[page_key] += 1
+                                    st.rerun()
+
+                        page_num = st.slider("Quick Jump", 1, num_pages, value=st.session_state[page_key], key=f"slide_{selected_file.name}")
+                        if page_num != st.session_state[page_key]:
+                            st.session_state[page_key] = page_num
+                            st.rerun()
+
+                        with st.spinner("Rendering page preview..."):
+                            images = convert_from_bytes(
+                                selected_file.getvalue(),
+                                dpi=120,
+                                first_page=st.session_state[page_key],
+                                last_page=st.session_state[page_key]
+                            )
+                            if images:
+                                st.image(images[0], use_container_width=True)
+                    except Exception as e:
+                        st.error(f"Failed to load PDF preview: {e}")
+                else:
+                    st.image(selected_file, use_container_width=True)
 
         with action_col:
             st.markdown("### Processing Settings")

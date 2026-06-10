@@ -1,0 +1,21 @@
+# Virtual environment
+venv/
+
+# Vector database storage
+vector_db/
+test_vector_db/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Exported data
+*_extracted.json
+
+# OS
+.DS_Store
+Thumbs.db

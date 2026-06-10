@@ -125,11 +125,14 @@ st.markdown("""
 
 .stat-box .val {
     font-family: 'Outfit', sans-serif;
-    font-size: 1.8rem;
+    font-size: 1.5rem;
     font-weight: 700;
     background: linear-gradient(135deg, #818cf8, #a78bfa);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
 }
 
 .stat-box .lbl {
@@ -139,6 +142,9 @@ st.markdown("""
     text-transform: uppercase;
     letter-spacing: 0.75px;
     margin-top: 0.4rem;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
 }
 
 /* Semantic Search and Preview result card */

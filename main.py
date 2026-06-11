@@ -40,7 +40,8 @@ def cli(verbose):
 @click.option("--output-json", "-o", default=None, help="Export to JSON")
 @click.option("--store/--no-store", default=True, show_default=True)
 @click.option("--db-path", default="./vector_db", show_default=True)
-def process(path, chunk_size, chunk_overlap, ocr_lang, dpi, output_json, store, db_path):
+@click.option("--omr", is_flag=True, help="Enable OMR (bubble sheet) processing mode")
+def process(path, chunk_size, chunk_overlap, ocr_lang, dpi, output_json, store, db_path, omr):
     """Extract, chunk, and index a document or directory."""
     config = ChunkConfig(size=chunk_size, overlap=chunk_overlap)
     target = Path(path)
@@ -49,9 +50,9 @@ def process(path, chunk_size, chunk_overlap, ocr_lang, dpi, output_json, store, 
         task = prog.add_task(f"Processing {target.name}...", total=None)
 
         if target.is_file():
-            docs = [process_file(str(target), config, ocr_lang, dpi)]
+            docs = [process_file(str(target), config, ocr_lang, dpi, is_omr=omr)]
         elif target.is_dir():
-            docs = process_directory(str(target), config, ocr_lang, dpi)
+            docs = process_directory(str(target), config, ocr_lang, dpi, is_omr=omr)
         else:
             console.print(f"[red]Invalid path: {path}[/red]")
             sys.exit(1)

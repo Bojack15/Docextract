@@ -55,15 +55,14 @@ def extract_page_custom(page) -> str:
             parts.append(text_upright.strip())
             
     if rotated_chars:
-        c0 = rotated_chars[0]
-        matrix = c0.get("matrix", (1, 0, 0, 1, 0, 0))
         H = page.height
         W = page.width
         
         rotated_chars_transformed = []
         for c in rotated_chars:
             c_new = c.copy()
-            if len(matrix) >= 4 and matrix[1] < 0:
+            c_matrix = c.get("matrix", (1, 0, 0, 1, 0, 0))
+            if len(c_matrix) >= 4 and c_matrix[1] < 0:
                 # 90 degrees clockwise visual rotation
                 c_new['x0'] = c['top']
                 c_new['x1'] = c['bottom']

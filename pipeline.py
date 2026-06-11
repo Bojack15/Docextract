@@ -31,17 +31,22 @@ def process_file(
     offset = 0
 
     for page in pages:
-        if not page.text:
-            continue
-        page_breaks[offset] = page.number
-        full_text_parts.append(page.text)
-        offset += len(page.text) + 2
+        page_content_parts = []
+        if page.text and page.text.strip():
+            page_content_parts.append(page.text.strip())
 
         for table in page.tables:
             table_str = _format_table(table)
-            if table_str:
-                full_text_parts.append(table_str)
-                offset += len(table_str) + 2
+            if table_str and table_str.strip():
+                page_content_parts.append(table_str.strip())
+
+        if not page_content_parts:
+            continue
+
+        page_content = "\n\n".join(page_content_parts)
+        page_breaks[offset] = page.number
+        full_text_parts.append(page_content)
+        offset += len(page_content) + 2
 
     full_text = "\n\n".join(full_text_parts)
     total_words = sum(p.word_count for p in pages)

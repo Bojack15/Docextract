@@ -66,14 +66,9 @@ class VectorStore:
                 })
         return results
 
-    def delete(self, document_id: str) -> int:
-        found = self.collection.get(where={"document_id": document_id})
-        if not found or not found.get("ids"):
-            return 0
-        
-        self.collection.delete(ids=found["ids"])
-        logger.info("Deleted %d chunks for document ID %s", len(found["ids"]), document_id)
-        return len(found["ids"])
+    def delete(self, document_id: str) -> None:
+        self.collection.delete(where={"document_id": document_id})
+        logger.info("Deleted chunks for document ID %s", document_id)
 
     def list_documents(self) -> list[dict]:
         data = self.collection.get(include=["metadatas"])

@@ -109,8 +109,21 @@ st.markdown("""
 /* Global app overrides */
 .stApp {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    background-color: #0b0c10;
-    color: #e2e8f0;
+    background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%);
+    color: #f8fafc;
+}
+
+/* Sidebar Styling */
+[data-testid="stSidebar"] {
+    background-color: #090d16 !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+[data-testid="stSidebar"] .stMarkdown h3 {
+    font-family: 'Outfit', sans-serif;
+    color: #cbd5e1;
+    font-size: 1.25rem;
+    font-weight: 600;
 }
 
 /* Custom premium hero section */
@@ -213,6 +226,82 @@ st.markdown("""
     font-size: 0.95rem;
 }
 
+/* Streamlit Tabs Styling */
+div[data-testid="stTabBar"] {
+    background-color: rgba(15, 23, 42, 0.6) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-radius: 12px !important;
+    padding: 4px !important;
+    margin-bottom: 20px !important;
+    backdrop-filter: blur(8px) !important;
+}
+
+div[data-testid="stTabBar"] button {
+    font-family: 'Outfit', sans-serif !important;
+    font-weight: 600 !important;
+    color: #64748b !important;
+    background-color: transparent !important;
+    border-radius: 8px !important;
+    transition: all 0.3s ease !important;
+    padding: 8px 16px !important;
+    border: none !important;
+}
+
+div[data-testid="stTabBar"] button[aria-selected="true"] {
+    color: #c084fc !important;
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Style file uploader dropzone */
+div[data-testid="stFileUploaderDropzone"] {
+    border: 2px dashed rgba(139, 92, 246, 0.3) !important;
+    background: rgba(30, 41, 59, 0.2) !important;
+    border-radius: 16px !important;
+    transition: border-color 0.3s ease, background-color 0.3s ease !important;
+}
+
+div[data-testid="stFileUploaderDropzone"]:hover {
+    border-color: #8b5cf6 !important;
+    background: rgba(139, 92, 246, 0.05) !important;
+}
+
+/* Slider and Selectbox typography and colors */
+.stSlider label, .stSelectbox label, .stTextInput label, .stSlider div, .stSelectbox div, .stTextInput div {
+    font-family: 'Outfit', sans-serif !important;
+}
+
+/* Premium Buttons Styling */
+button[kind="primary"] {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 12px !important;
+    padding: 0.6rem 1.5rem !important;
+    font-weight: 600 !important;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+button[kind="primary"]:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6) !important;
+}
+
+button[kind="secondary"] {
+    background: rgba(30, 41, 59, 0.5) !important;
+    color: #cbd5e1 !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 12px !important;
+    transition: all 0.3s ease !important;
+}
+
+button[kind="secondary"]:hover {
+    background: rgba(30, 41, 59, 0.8) !important;
+    border-color: rgba(139, 92, 246, 0.4) !important;
+    color: #f8fafc !important;
+}
+
 /* Prevent image overflow in column containers and ensure centering */
 img, .stImage, div[data-testid="stImage"] {
     max-width: 100% !important;
@@ -222,6 +311,7 @@ img, .stImage, div[data-testid="stImage"] {
     margin-right: auto;
 }
 </style>
+
 """, unsafe_allow_html=True)
 
 # ─────────────────── Header ────────────────────────

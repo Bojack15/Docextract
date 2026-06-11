@@ -7,10 +7,16 @@ from pathlib import Path
 import streamlit as st
 import pdfplumber
 from pdf2image import convert_from_bytes
+from streamlit.runtime.scriptrunner import get_script_run_ctx
 
 from chunker import ChunkConfig
 from pipeline import process_file, export_json
 from vector_store import VectorStore
+
+
+def get_session_id():
+    ctx = get_script_run_ctx()
+    return ctx.session_id if ctx else "default"
 
 
 @st.cache_data
@@ -26,8 +32,8 @@ def get_bg_tasks():
 BG_TASKS = get_bg_tasks()
 
 
-def background_processing_task(file_bytes, filename, config, ocr_lang, dpi, do_omr, do_store, db_path, do_export):
-    BG_TASKS[filename] = {"status": "processing", "doc": None, "error": None}
+def background_processing_task(session_id, file_bytes, filename, config, ocr_lang, dpi, do_omr, do_store, db_path, do_export):
+    BG_TASKS[(session_id, filename)] = {"status": "processing", "doc": None, "error": None}
     suffix = Path(filename).suffix
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp.write(file_bytes)
@@ -46,16 +52,46 @@ def background_processing_task(file_bytes, filename, config, ocr_lang, dpi, do_o
             out = f"./{Path(filename).stem}_extracted.json"
             export_json(doc, out)
 
-        BG_TASKS[filename]["doc"] = doc
-        BG_TASKS[filename]["status"] = "completed"
+        BG_TASKS[(session_id, filename)]["doc"] = doc
+        BG_TASKS[(session_id, filename)]["status"] = "completed"
     except Exception as e:
-        BG_TASKS[filename]["error"] = str(e)
-        BG_TASKS[filename]["status"] = "failed"
+        BG_TASKS[(session_id, filename)]["error"] = str(e)
+        BG_TASKS[(session_id, filename)]["status"] = "failed"
     finally:
         try:
             os.unlink(tmp_path)
         except:
             pass
+
+
+@st.fragment(run_every=1)
+def check_status_fragment(session_id, selected_filename):
+    if "processed_docs" not in st.session_state:
+        st.session_state["processed_docs"] = {}
+        
+    any_running = False
+    any_finished = False
+    
+    for (s_id, fname), task in list(BG_TASKS.items()):
+        if s_id == session_id:
+            if task["status"] == "processing":
+                if fname == selected_filename:
+                    any_running = True
+            elif task["status"] == "completed":
+                st.session_state["processed_docs"][fname] = task["doc"]
+                BG_TASKS.pop((s_id, fname), None)
+                any_finished = True
+            elif task["status"] == "failed":
+                st.error(f"Failed to process {fname}: {task['error']}")
+                BG_TASKS.pop((s_id, fname), None)
+                any_finished = True
+                
+    if any_running:
+        st.info("Processing...")
+        st.spinner("Parsing layouts...")
+        
+    if any_finished:
+        st.rerun()
 
 # ─────────────────── Page Config ───────────────────
 st.set_page_config(
@@ -266,7 +302,8 @@ with tab_process:
             }
 
             if st.button("Process Document", type="primary", use_container_width=True):
-                if BG_TASKS.get(selected_file.name, {}).get("status") == "processing":
+                session_id = get_session_id()
+                if BG_TASKS.get((session_id, selected_file.name), {}).get("status") == "processing":
                     st.warning("Already processing this file!")
                 else:
                     config = ChunkConfig(size=chunk_size, overlap=chunk_overlap)
@@ -274,6 +311,7 @@ with tab_process:
                     t = threading.Thread(
                         target=background_processing_task,
                         args=(
+                            session_id,
                             file_bytes,
                             selected_file.name,
                             config,
@@ -288,22 +326,7 @@ with tab_process:
                     t.start()
                     st.rerun()
 
-            task = BG_TASKS.get(selected_file.name)
-            if task:
-                if task["status"] == "processing":
-                    st.info("Processing...")
-                    st.spinner("Parsing layouts...")
-                    import time
-                    time.sleep(1)
-                    st.rerun()
-                elif task["status"] == "completed":
-                    st.session_state["processed_docs"][selected_file.name] = task["doc"]
-                    BG_TASKS.pop(selected_file.name, None)
-                    st.success(f"Finished processing {selected_file.name}!")
-                    st.rerun()
-                elif task["status"] == "failed":
-                    st.error(f"Failed to process {selected_file.name}: {task['error']}")
-                    BG_TASKS.pop(selected_file.name, None)
+            check_status_fragment(get_session_id(), selected_file.name)
 
             # Render stats and previews for any processed documents in session state
             if st.session_state["processed_docs"]:

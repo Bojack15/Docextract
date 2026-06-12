@@ -5,6 +5,7 @@ A python tool for extracting text and tables from PDFs and scanned documents, ch
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit%20Cloud-FF4B4B?logo=streamlit&logoColor=white)](https://docextract-arnav.streamlit.app)
 
 ![App Screenshot](docextract_screenshot.png)
+![System Architecture](docextract_architecture.png)
 
 ## Features
 

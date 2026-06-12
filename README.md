@@ -1,4 +1,4 @@
-# docextract
+# Docextract
 
 A python tool for extracting text and tables from PDFs and scanned documents, chunking the content, and indexing it into ChromaDB for semantic search. Includes a command-line tool and a Streamlit web interface.
 

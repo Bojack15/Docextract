@@ -27,7 +27,29 @@ def correct_perspective(image: np.ndarray) -> np.ndarray:
         # If the contour has 4 points, we found the page border
         if len(approx) == 4:
             pts = approx.reshape(4, 2)
-            return _warp_document(image, pts)
+            
+            # Sort the points: [top-left, top-right, bottom-right, bottom-left]
+            rect = np.zeros((4, 2), dtype="float32")
+            s = pts.sum(axis=1)
+            rect[0] = pts[np.argmin(s)]
+            rect[2] = pts[np.argmax(s)]
+            diff = np.diff(pts, axis=1)
+            rect[1] = pts[np.argmin(diff)]
+            rect[3] = pts[np.argmax(diff)]
+            
+            # Check for skew: calculate horizontal and vertical deviation of sides
+            dev_left_x = abs(rect[0][0] - rect[3][0])
+            dev_right_x = abs(rect[1][0] - rect[2][0])
+            dev_top_y = abs(rect[0][1] - rect[1][1])
+            dev_bottom_y = abs(rect[3][1] - rect[2][1])
+            
+            h, w = image.shape[:2]
+            threshold_w = w * 0.015
+            threshold_h = h * 0.015
+            
+            # Only warp if there is significant skew/tilt in horizontal or vertical lines
+            if (max(dev_left_x, dev_right_x) > threshold_w) or (max(dev_top_y, dev_bottom_y) > threshold_h):
+                return _warp_document(image, pts)
             
     return image
 

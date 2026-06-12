@@ -194,9 +194,14 @@ def _extract_image(filepath: str, ocr_lang: str, is_omr: bool) -> list[Page]:
 
 
 def _ocr_image(image: Image.Image, lang: str) -> tuple[str, float]:
-    config = "--oem 3 --psm 6"
+    w, h = image.size
+    crop_x = int(w * 0.03)
+    crop_y = int(h * 0.03)
+    cropped_image = image.crop((crop_x, crop_y, w - crop_x, h - crop_y))
+
+    config = "--oem 3 --psm 3"
     data = pytesseract.image_to_data(
-        image, lang=lang, config=config,
+        cropped_image, lang=lang, config=config,
         output_type=pytesseract.Output.DICT,
     )
     
